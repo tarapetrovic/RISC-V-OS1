@@ -9,10 +9,22 @@
 #include "../h/Riscv.hpp"
 #include "../lib/console.h"
 #include "../h/MemoryAllocator.hpp"
+#include "../h/syscall_c.hpp"
 
 int main()
 {
+    MemoryAllocator::kinit();
+    Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
+    // Riscv::ms_sstatus(Riscv::SSTATUS_SIE);
 
+    void* p1 = mem_alloc(64);
+    __putc(p1 ? 'Y' : 'N');
+    void* p2 = mem_alloc(128);
+    __putc(p2 ? 'Y' : 'N');
+    int r = mem_free(p1);
+    __putc(r == 0 ? 'Y' : 'N');
+    r = mem_free(p2);
+    __putc(r == 0 ? 'Y' : 'N');
 
 
     /* Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
