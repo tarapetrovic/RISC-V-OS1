@@ -3,13 +3,23 @@
 //
 // Kod preuzet sa 7. vezbi
 
-#include "../h/tcb.hpp"
-#include "../h/workers.hpp"
-#include "../h/print.hpp"
-#include "../h/riscv.hpp"
+// #include "../h/tcb.hpp"
+// #include "../h/workers.hpp"
+// #include "../h/print.hpp"
+#include "../h/Riscv.hpp"
+#include "../lib/console.h"
+#include "../h/MemoryAllocator.hpp"
 
 int main()
 {
+
+
+
+    /* Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
+    //Riscv::ms_sstatus(Riscv::SSTATUS_SIE);
+    __asm__ volatile("ecall");
+    __putc('O'); __putc('K');
+*/
     /*
     TCB *threads[5];
 
@@ -41,8 +51,7 @@ int main()
         delete thread;
     }
     printString("Finished\n");
-
+*/
     return 0;
-     */
 }
 
