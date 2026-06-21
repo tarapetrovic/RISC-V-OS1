@@ -5,10 +5,12 @@
 #ifndef PROJECT_BASE_V1_1_SYSCALL_C_HPP
 #define PROJECT_BASE_V1_1_SYSCALL_C_HPP
 
+#include "../lib/hw.h"
 
-class syscall_c {
 
-};
+    void* mem_alloc(size_t size);
+    int mem_free(void* ptr);
+
 
 
 #endif //PROJECT_BASE_V1_1_SYSCALL_C_HPP
