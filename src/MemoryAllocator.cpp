@@ -4,6 +4,8 @@
 
 #include "../h/MemoryAllocator.hpp"
 
+MemoryAllocator::FreeMem *MemoryAllocator::freeMemHead = nullptr;
+
 void *MemoryAllocator::kmem_alloc(size_t size) {
     if (size == 0) return nullptr; // nothing needs to be allocated;
     FreeMem* curr = freeMemHead, *prev = nullptr;
@@ -68,12 +70,19 @@ int MemoryAllocator::kmem_free(void *ptr) {
         merged = true;
     }
 
-    if (!merged) { // didnt merge with any neighbours, needs to be inserted into the list
+    if (!merged) {
+        if (prev) prev->next = segToFree;
+        else freeMemHead = segToFree;
+        return 1; // tell us it didn't merge
+    }
+    return 2; // tell us it did merge
+
+    /*if (!merged) { // didnt merge with any neighbours, needs to be inserted into the list
         if (prev) prev->next = segToFree;
         else freeMemHead = segToFree;
     }
 
-    return 0;
+    return 0;*/
 }
 
 void MemoryAllocator::kinit() {
