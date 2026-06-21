@@ -11,7 +11,7 @@
 class Riscv
 {
 public:
-/*
+
     // pop sstatus.spp and sstatus.spie bits (has to be a non inline function)
     static void popSppSpie();
 
@@ -77,7 +77,7 @@ public:
     // write register sstatus
     static void w_sstatus(uint64 sstatus);
 
-    // supervisor trap
+    // supervisor trap, skok u prekidnu rutinu
     static void supervisorTrap();
 
 private:
@@ -178,6 +178,5 @@ inline void Riscv::w_sstatus(uint64 sstatus)
 {
     __asm__ volatile ("csrw sstatus, %[sstatus]" : : [sstatus] "r"(sstatus));
 }
-*/
 
 #endif //PROJECT_BASE_V1_1_RISCV_HPP
