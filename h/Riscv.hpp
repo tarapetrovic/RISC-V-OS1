@@ -7,6 +7,8 @@
 #define PROJECT_BASE_V1_1_RISCV_HPP
 
 #include "../lib/hw.h"
+#include "TCB.hpp"
+
 
 class Riscv
 {
@@ -78,7 +80,7 @@ public:
     static void w_sstatus(uint64 sstatus);
 
     // supervisor trap, skok u prekidnu rutinu
-    static void supervisorTrap();
+    static void supervisorTrap();  // ovo nikad nisam ni implementirala ??????????????????????
 
 private:
 
