@@ -53,9 +53,9 @@ private:
     Body body;
     void* stack; // da li je void* dobar tip? ili bolje char*?
     // uint64 *stack;
-    void* arg; // ili Argument arg
     Context context;
     uint64 timeSlice;
+    void* arg; // ili Argument arg
     bool finished;
 
     friend class Riscv;
