@@ -45,6 +45,10 @@ void Riscv::handleSupervisorTrap() {
                 retVal = MemoryAllocator::kmem_free((void*) arg1);
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
+            case 0x13: {
+                TCB::dispatch();
+                break;
+            }
         }
 
     }
