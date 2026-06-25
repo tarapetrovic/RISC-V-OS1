@@ -10,21 +10,43 @@
 #include "../lib/console.h"
 #include "../h/MemoryAllocator.hpp"
 #include "../h/syscall_c.hpp"
+#include "../h/TCB.hpp"
+
+void workerA(void* arg) {
+    for(int i = 0; i < 3; i++) __putc('A');
+}
+
+void workerB(void* arg) {
+    for(int i = 0; i < 3; i++) __putc('B');
+}
+
+void workerC(void* arg) {
+    for(int i = 0; i < 3; i++) __putc('C');
+}
 
 int main()
 {
     MemoryAllocator::kinit();
     Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
-    // Riscv::ms_sstatus(Riscv::SSTATUS_SIE);
+    TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
 
-    void* p1 = mem_alloc(64);
-    __putc(p1 ? 'Y' : 'N');
-    void* p2 = mem_alloc(128);
-    __putc(p2 ? 'Y' : 'N');
-    int r = mem_free(p1);
-    __putc(r == 0 ? 'Y' : 'N');
-    r = mem_free(p2);
-    __putc(r == 0 ? 'Y' : 'N');
+    void* stackA = mem_alloc(DEFAULT_STACK_SIZE);
+    void* stackB = mem_alloc(DEFAULT_STACK_SIZE);
+    void* stackC = mem_alloc(DEFAULT_STACK_SIZE);
+
+    TCB* tcbA = TCB::createThread(workerA, nullptr, stackA);
+    TCB* tcbB = TCB::createThread(workerB, nullptr, stackB);
+    TCB* tcbC = TCB::createThread(workerC, nullptr, stackC);
+
+    while (!tcbA->isFinished() || !tcbB->isFinished() || !tcbC->isFinished()) {
+        TCB::yield();
+    }
+
+    __putc('D');
+    __putc('o');
+    __putc('n');
+    __putc('e');
+    return 0;
 
 
     /* Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
