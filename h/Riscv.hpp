@@ -80,7 +80,7 @@ public:
     static void w_sstatus(uint64 sstatus);
 
     // supervisor trap, skok u prekidnu rutinu
-    static void supervisorTrap();  // ovo nikad nisam ni implementirala ??????????????????????
+    static void supervisorTrap();  // implemented via Trap.S
 
 private:
 
