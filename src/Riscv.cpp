@@ -7,13 +7,14 @@
 // #include "../h/tcb.hpp"
 #include "../lib/console.h"
 #include "../h/MemoryAllocator.hpp"
-/*
+
+
 void Riscv::popSppSpie()
 {
     __asm__ volatile("csrw sepc, ra");
     __asm__ volatile("sret");
 }
-*/
+
 
 void Riscv::handleSupervisorTrap() {
     volatile uint64 scause = Riscv::r_scause();
