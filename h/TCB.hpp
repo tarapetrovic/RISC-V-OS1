@@ -7,7 +7,7 @@
 #define PROJECT_BASE_V1_1_TCB_HPP
 
 #include "../lib/hw.h"
-// #include "scheduler.hpp"
+#include "../h/Scheduler.hpp"
 
 // Thread Control Block
 class TCB
