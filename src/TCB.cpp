@@ -6,6 +6,7 @@
 #include "../h/TCB.hpp"
 #include "../h/Riscv.hpp"
 #include "../h/syscall_c.hpp"
+#include "../lib/console.h"
 
 TCB *TCB::running = nullptr;
 uint64 TCB::timeSliceCounter = 0;
@@ -22,9 +23,8 @@ void TCB::yield() {
 void TCB::threadWrapper() {
     Riscv::popSppSpie();
     running->body(running->arg); // Start the Thread body to execute, and pass the argument to body function
-
     running->setFinished(true);
-    yield(); // or just directly call thread_dispatch()?
+    thread_dispatch(); // yield or just directly call thread_dispatch()?
 }
 
 void TCB::dispatch() {
