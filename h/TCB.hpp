@@ -19,6 +19,8 @@ public:
 
     void setFinished(bool value) { finished = value; }
 
+    bool isPrivileged() const { return privileged; }
+
     uint64 getTimeSlice() const { return timeSlice; }
 
     using Body = void (*)(void*);
@@ -39,7 +41,8 @@ private:
                     }),
             timeSlice(timeSlice),
             arg(arg),
-            finished(false)
+            finished(false),
+            privileged(body == nullptr)
     {
         if (body != nullptr) { Scheduler::put(this); } // check if its not main, then add it to scheduler
     }
@@ -57,6 +60,7 @@ private:
     uint64 timeSlice;
     void* arg; // ili Argument arg
     bool finished;
+    bool privileged;
 
     friend class Riscv;
 
