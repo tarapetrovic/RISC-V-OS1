@@ -23,8 +23,9 @@ void TCB::yield() {
 void TCB::threadWrapper() {
     Riscv::popSppSpie();
     running->body(running->arg); // Start the Thread body to execute, and pass the argument to body function
-    running->setFinished(true);
-    thread_dispatch(); // yield or just directly call thread_dispatch()?
+//    running->setFinished(true);
+//    thread_dispatch(); // yield or just directly call thread_dispatch()?
+    thread_exit();
 }
 
 void TCB::dispatch() {
@@ -33,4 +34,11 @@ void TCB::dispatch() {
 
     running = Scheduler::get();
     contextSwitch(&old->context, &running->context);
+}
+
+int TCB::exit() {
+    if (running == nullptr || running->isFinished()) return -1;
+    running->setFinished(true);
+    dispatch();
+    return 0;
 }
