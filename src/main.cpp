@@ -15,58 +15,40 @@
 volatile uint64 counterA = 0;
 volatile uint64 counterB = 0;
 
-void workerA(void* arg) {
-    for(int i = 0; i < 5; i++) {
+void workerA(void*) {
+    for (int i = 0; i < 5; i++) {
         counterA++;
+        thread_dispatch();
     }
 }
 
-void workerB(void* arg) {
-    for(int i = 0; i < 5; i++) {
+void workerB(void*) {
+    for (int i = 0; i < 4; i++) {
         counterB++;
+        thread_dispatch();
     }
 }
+
 int main() {
-    // initialize allocator
+
     MemoryAllocator::kinit();
-    __putc('1');
-
-    // initialize trap vector
     Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
-    __putc('2');
 
-    // create main thread (privileged, body=nullptr)
-    TCB* threads[3];
-    threads[0] = TCB::createThread(nullptr, nullptr, nullptr);
-    TCB::running = threads[0];
-    __putc('3');
+    TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
 
-    // allocate stacks and create user threads
-    void* stackA = MemoryAllocator::kmem_alloc(
-            (DEFAULT_STACK_SIZE + sizeof(size_t) + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE
-    );
-    void* stackB = MemoryAllocator::kmem_alloc(
-            (DEFAULT_STACK_SIZE + sizeof(size_t) + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE
-    );
-    __putc('4');
+    thread_t handleA, handleB;
+    thread_create(&handleA, workerA, nullptr);
+    thread_create(&handleB, workerB, nullptr);
 
-    threads[1] = TCB::createThread(workerA, nullptr, (char*)stackA + DEFAULT_STACK_SIZE);
-    __putc('5');
-    threads[2] = TCB::createThread(workerB, nullptr, (char*)stackB + DEFAULT_STACK_SIZE);
-    __putc('6');
-
-    // run until all threads done
-    while (!threads[1]->isFinished() || !threads[2]->isFinished()) {
-        __putc('p');
-        TCB::yield();
+    while (!((TCB*)handleA)->isFinished() ||
+           !((TCB*)handleB)->isFinished()) {
+        thread_dispatch();
     }
-    __putc(counterA);
-    __putc(counterB);
 
-    __putc('D');
-    __putc('o');
-    __putc('n');
-    __putc('e');
+    __putc('A'); __putc(':'); __putc('0' + counterA); __putc('\n');
+    __putc('B'); __putc(':'); __putc('0' + counterB); __putc('\n');
+    __putc('D'); __putc('o'); __putc('n'); __putc('e'); __putc('\n');
+
     return 0;
 
 
