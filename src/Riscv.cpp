@@ -7,6 +7,7 @@
 // #include "../h/tcb.hpp"
 #include "../lib/console.h"
 #include "../h/MemoryAllocator.hpp"
+#include "../h/syscall_c.hpp"
 
 
 void Riscv::popSppSpie()
@@ -71,6 +72,21 @@ void Riscv::handleSupervisorTrap() {
             }
             case 0x02: // mem_free
                 retVal = MemoryAllocator::kmem_free((void*) arg1);
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            case 0x11: {// thread_create
+                thread_t *handle = (thread_t*) arg1;
+                TCB::Body body = (TCB::Body) arg2;
+                void *targ = (void *) arg3;
+                void *stack = (void *) arg4;
+                TCB *tcb = TCB::createThread(body, targ, stack);
+                if (handle && tcb) *handle = (thread_t)tcb;
+                retVal = tcb ? 0 : -1;
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x12: // thread_exit
+                retVal = TCB::exit();
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             case 0x13: {
