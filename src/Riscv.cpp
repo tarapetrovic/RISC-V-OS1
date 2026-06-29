@@ -11,16 +11,44 @@
 
 void Riscv::popSppSpie()
 {
-    __asm__ volatile("csrw sepc, ra");
-    __asm__ volatile("sret");
+    ms_sstatus(SSTATUS_SPIE);
+    if (TCB::running->isPrivileged())
+        ms_sstatus(SSTATUS_SPP); // supervisor mode
+    else
+        mc_sstatus(SSTATUS_SPP); // user mode
+    // mc_sip(SIP_SSIP);
+    // __putc('Q');  // about to sret
+    // __asm__ volatile ("addi sp, sp, 16"); // restore sp
+    __asm__ volatile ("csrw sepc, ra");
+    __asm__ volatile ("sret");
 }
 
+void printHex(uint64 val) {
+    const char* hexDigits = "0123456789abcdef";
+    __putc('0'); __putc('x');
+    for (int shift = 60; shift >= 0; shift -= 4) {
+        __putc(hexDigits[(val >> shift) & 0xF]);
+    }
+}
+volatile uint64 extIrqCount = 0;
 
 void Riscv::handleSupervisorTrap() {
     volatile uint64 scause = Riscv::r_scause();
     volatile uint64 sepc = Riscv::r_sepc();
     volatile uint64 sstatus = Riscv::r_sstatus();
-    if (scause == 0x0000000000000008UL || scause == 0x0000000000000009UL) // ecall iz korisnickog ili sistemskog rezima, respektivno
+
+    if (scause == 0x8000000000000001UL) {
+        // timer/software interrupt — clear it and return for now
+        mc_sip(SIP_SSIP);
+        //return;
+    }
+    else if (scause == 0x8000000000000009UL)
+    {
+        console_handler();
+    }
+
+    // __putc('T'); printHex(scause); __putc('\n'); // confirms we even got here, and why
+    else if (scause == 0x0000000000000008UL || scause == 0x0000000000000009UL) // ecall iz korisnickog ili sistemskog rezima, respektivno
     {
         sepc += 4; // ecall returns pc on the old instruction, we need to shift it by 1 instruction, so 4 bytes
 
@@ -49,9 +77,15 @@ void Riscv::handleSupervisorTrap() {
                 TCB::dispatch();
                 break;
             }
+            default:
+                __putc('?');
         }
 
     }
+    else {
+        extIrqCount++;
+    }
+
     w_sstatus(sstatus); // reconstruct registers
     w_sepc(sepc); // reconstruct registers
 }
