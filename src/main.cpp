@@ -12,35 +12,56 @@
 #include "../h/syscall_c.hpp"
 #include "../h/TCB.hpp"
 
+volatile uint64 counterA = 0;
+volatile uint64 counterB = 0;
+
 void workerA(void* arg) {
-    for(int i = 0; i < 3; i++) __putc('A');
+    for(int i = 0; i < 5; i++) {
+        counterA++;
+    }
 }
 
 void workerB(void* arg) {
-    for(int i = 0; i < 3; i++) __putc('B');
+    for(int i = 0; i < 5; i++) {
+        counterB++;
+    }
 }
-
-void workerC(void* arg) {
-    for(int i = 0; i < 3; i++) __putc('C');
-}
-
-int main()
-{
+int main() {
+    // initialize allocator
     MemoryAllocator::kinit();
+    __putc('1');
+
+    // initialize trap vector
     Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
-    TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
+    __putc('2');
 
-    void* stackA = mem_alloc(DEFAULT_STACK_SIZE);
-    void* stackB = mem_alloc(DEFAULT_STACK_SIZE);
-    void* stackC = mem_alloc(DEFAULT_STACK_SIZE);
+    // create main thread (privileged, body=nullptr)
+    TCB* threads[3];
+    threads[0] = TCB::createThread(nullptr, nullptr, nullptr);
+    TCB::running = threads[0];
+    __putc('3');
 
-    TCB* tcbA = TCB::createThread(workerA, nullptr, stackA);
-    TCB* tcbB = TCB::createThread(workerB, nullptr, stackB);
-    TCB* tcbC = TCB::createThread(workerC, nullptr, stackC);
+    // allocate stacks and create user threads
+    void* stackA = MemoryAllocator::kmem_alloc(
+            (DEFAULT_STACK_SIZE + sizeof(size_t) + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE
+    );
+    void* stackB = MemoryAllocator::kmem_alloc(
+            (DEFAULT_STACK_SIZE + sizeof(size_t) + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE
+    );
+    __putc('4');
 
-    while (!tcbA->isFinished() || !tcbB->isFinished() || !tcbC->isFinished()) {
+    threads[1] = TCB::createThread(workerA, nullptr, (char*)stackA + DEFAULT_STACK_SIZE);
+    __putc('5');
+    threads[2] = TCB::createThread(workerB, nullptr, (char*)stackB + DEFAULT_STACK_SIZE);
+    __putc('6');
+
+    // run until all threads done
+    while (!threads[1]->isFinished() || !threads[2]->isFinished()) {
+        __putc('p');
         TCB::yield();
     }
+    __putc(counterA);
+    __putc(counterB);
 
     __putc('D');
     __putc('o');
