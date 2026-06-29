@@ -7,11 +7,15 @@
 
 #include "../lib/hw.h"
 
+    // typedef TCB *thread_t; // Andrejev nacin
+    class _thread; // ovako traze specifikacije??? al onda mora da se castuje uvek?
+    typedef _thread* thread_t;
 
     void* mem_alloc(size_t size);
     int mem_free(void* ptr);
     void thread_dispatch();
-
+    int thread_create(thread_t* handle, void(*start_routine)(void*), void* arg);
+    int thread_exit();
 
 
 #endif //PROJECT_BASE_V1_1_SYSCALL_C_HPP
