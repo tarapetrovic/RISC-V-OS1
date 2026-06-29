@@ -70,6 +70,8 @@ private:
 
     static void dispatch();
 
+    static int exit();
+
     static uint64 timeSliceCounter;
 
     // static uint64 constexpr STACK_SIZE = 1024;
