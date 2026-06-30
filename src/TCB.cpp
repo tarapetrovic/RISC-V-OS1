@@ -30,7 +30,7 @@ void TCB::threadWrapper() {
 
 void TCB::dispatch() {
     TCB *old = running;
-    if (!old->isFinished()) Scheduler::put(old);
+    if (!old->isFinished() && !old->isBlocked()) Scheduler::put(old);
 
     running = Scheduler::get();
     contextSwitch(&old->context, &running->context);
