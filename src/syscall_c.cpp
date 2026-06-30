@@ -5,7 +5,7 @@
 #include "../h/syscall_c.hpp"
 #include "../lib/hw.h"
 
-void* mem_alloc(size_t size) {
+void* mem_alloc(size_t size) { // razmisli da ovde konvertujes bitove u blokove, a ne u case grani nakon ecall
     volatile uint64 ret;
     __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz] "r"(size));
     __asm__ volatile ("li a0, 0x01");
