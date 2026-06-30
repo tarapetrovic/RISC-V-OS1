@@ -10,6 +10,8 @@
     // typedef TCB *thread_t; // Andrejev nacin
     class _thread; // ovako traze specifikacije??? al onda mora da se castuje uvek?
     typedef _thread* thread_t;
+    class _sem;
+    typedef _sem* sem_t;
 
     void* mem_alloc(size_t size);
     int mem_free(void* ptr);
