@@ -5,16 +5,16 @@
 #ifndef PROJECT_BASE_V1_1__SEM_HPP
 #define PROJECT_BASE_V1_1__SEM_HPP
 
-#include "../h/List.hpp"
-#include "../h/TCB.hpp"
-#include "../h/MemoryAllocator.hpp"
+#include "List.hpp"
+#include "TCB.hpp"
+#include "MemoryAllocator.hpp"
 
 class Semaphore {
 
 public:
     Semaphore(int init) : value(init), closed(false) {}
-    int wait();
-    int signal();
+    int wait_n(unsigned n);
+    int signal_n(unsigned n);
     int close();
 
     void* operator new(size_t size) {
