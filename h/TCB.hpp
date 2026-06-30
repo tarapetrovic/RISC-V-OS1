@@ -21,6 +21,12 @@ public:
 
     bool isPrivileged() const { return privileged; }
 
+    bool isBlocked() const { return blocked; }
+
+    void setBlocked(bool value) { blocked = value; }
+
+    int getWaitingCount() { return waitingCount; }
+
     uint64 getTimeSlice() const { return timeSlice; }
 
     using Body = void (*)(void*);
@@ -42,7 +48,9 @@ private:
             timeSlice(timeSlice),
             arg(arg),
             finished(false),
-            privileged(body == nullptr)
+            blocked(false),
+            privileged(body == nullptr),
+            waitingCount(0)
     {
         if (body != nullptr) { Scheduler::put(this); } // check if its not main, then add it to scheduler
     }
@@ -60,7 +68,9 @@ private:
     uint64 timeSlice;
     void* arg; // ili Argument arg
     bool finished;
+    bool blocked;
     bool privileged;
+    unsigned waitingCount;
 
     friend class Riscv;
 
