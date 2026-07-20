@@ -14,7 +14,7 @@ int Semaphore::wait_n(unsigned n) {
     }
     block(n);
 
-    if (closed) return -1; // ovde se vracaju niti koje se odblokiraju, ako je semafor zatvoren dok su bile blokirane javi gresku
+    if (TCB::running->getWakeupError()) return -1; // ovde se vracaju niti koje se odblokiraju, ako je semafor zatvoren dok su bile blokirane javi gresku
     return 0;
 }
 
@@ -23,7 +23,7 @@ int Semaphore::signal_n(unsigned n) {
 
     value += n;
 
-    while (blockedThreads.peekFirst() && (unsigned)value >= blockedThreads.peekFirst()->getWaitingCount()) {
+    while (blockedThreads.peekFirst() && value >= blockedThreads.peekFirst()->getWaitingCount()) {
         unblock();
     }
 
@@ -36,16 +36,19 @@ int Semaphore::close() {
 
     while (blockedThreads.peekFirst()) {
         TCB* head = blockedThreads.removeFirst();
+        head->setWakeupError(true);
         head->setBlocked(false);
         Scheduler::put(head);
     }
+    return 0;
 }
 
 void Semaphore::block(unsigned n) {
     TCB* running = TCB::running;
     running->waitingCount = n;
+    running->setWakeupError(false);
     running->setBlocked(true);
-    blockedThreads.addLast(TCB::running);
+    blockedThreads.addLast(running);
     TCB::dispatch(); // ili thread_dispatch()????
 }
 
@@ -54,4 +57,12 @@ void Semaphore::unblock() {
     value -= head->getWaitingCount();
     head->setBlocked(false);
     Scheduler::put(head);
+}
+
+int Semaphore::wait() {
+    return wait_n(1);
+}
+
+int Semaphore::signal() {
+    return signal_n(1);
 }
