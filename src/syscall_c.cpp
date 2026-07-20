@@ -50,3 +50,60 @@ void thread_dispatch() {
     __asm__ volatile ("li a0, 0x13");
     __asm__ volatile ("ecall");
 }
+
+int sem_open(sem_t* handle, unsigned init) {
+    volatile uint64 ret;
+    __asm__ volatile ("mv a2, %[ulaz]" : : [ulaz]"r"(init));
+    __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz]"r"(handle));
+    __asm__ volatile ("li a0, 0x21");
+    __asm__ volatile ("ecall");
+    __asm__ volatile ("mv %[izlaz], a0" : [izlaz]"=r"(ret));
+    return (int)ret;
+}
+
+int sem_close(sem_t handle) {
+    volatile uint64 ret;
+    __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz]"r"(handle));
+    __asm__ volatile ("li a0, 0x22");
+    __asm__ volatile ("ecall");
+    __asm__ volatile ("mv %[izlaz], a0" : [izlaz]"=r"(ret));
+    return (int)ret;
+}
+
+int sem_wait(sem_t id) {
+    volatile uint64 ret;
+    __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz]"r"(id));
+    __asm__ volatile ("li a0, 0x23");
+    __asm__ volatile ("ecall");
+    __asm__ volatile ("mv %[izlaz], a0" : [izlaz]"=r"(ret));
+    return (int)ret;
+}
+
+int sem_signal(sem_t id) {
+    volatile uint64 ret;
+    __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz]"r"(id));
+    __asm__ volatile ("li a0, 0x24");
+    __asm__ volatile ("ecall");
+    __asm__ volatile ("mv %[izlaz], a0" : [izlaz]"=r"(ret));
+    return (int)ret;
+}
+
+int sem_wait_n(sem_t id, unsigned n) {
+    volatile uint64 ret;
+    __asm__ volatile ("mv a2, %[ulaz]" : : [ulaz]"r"(n));
+    __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz]"r"(id));
+    __asm__ volatile ("li a0, 0x25");
+    __asm__ volatile ("ecall");
+    __asm__ volatile ("mv %[izlaz], a0" : [izlaz]"=r"(ret));
+    return (int)ret;
+}
+
+int sem_signal_n(sem_t id, unsigned n) {
+    volatile uint64 ret;
+    __asm__ volatile ("mv a2, %[ulaz]" : : [ulaz]"r"(n));
+    __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz]"r"(id));
+    __asm__ volatile ("li a0, 0x26");
+    __asm__ volatile ("ecall");
+    __asm__ volatile ("mv %[izlaz], a0" : [izlaz]"=r"(ret));
+    return (int)ret;
+}
