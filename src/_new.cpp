@@ -3,7 +3,7 @@
 //
 // Deo koda preuzet sa 7. vezbi
 
-#include "../lib/mem.h"
+// #include "../lib/mem.h"
 #include "../h/syscall_c.hpp"
 
 using size_t = decltype(sizeof(0));
