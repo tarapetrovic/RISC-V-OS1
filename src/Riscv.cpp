@@ -8,6 +8,7 @@
 #include "../lib/console.h"
 #include "../h/MemoryAllocator.hpp"
 #include "../h/syscall_c.hpp"
+#include "../h/_sem.hpp"
 
 
 void Riscv::popSppSpie()
@@ -60,37 +61,91 @@ void Riscv::handleSupervisorTrap() {
         __asm__ volatile("ld %[name], 13*8(fp)":[name] "=r" (arg3));
         __asm__ volatile("ld %[name], 14*8(fp)":[name] "=r" (arg4));
 
-        volatile uint64 retVal = 0;
+        // volatile uint64 retVal = 0;
 
         switch (opNum) {
-            case 0x01: {// mem_alloc
+            case 0x01: { // mem_alloc
                 size_t size = (size_t) arg1;
-                size_t blocks = (size + sizeof(size_t) + MEM_BLOCK_SIZE - 1) / MEM_BLOCK_SIZE; // ceil for integers, finding number of blocks needed
-                void *ret = MemoryAllocator::kmem_alloc(blocks);
-                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(ret)); // we put ret on stack on place of a0
+                size_t blocks = (size + sizeof(size_t) + MEM_BLOCK_SIZE - 1) /
+                                MEM_BLOCK_SIZE; // ceil for integers, finding number of blocks needed
+                void *retVal = MemoryAllocator::kmem_alloc(blocks);
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal)); // we put retVal on stack on place of a0
                 break;
             }
-            case 0x02: // mem_free
-                retVal = MemoryAllocator::kmem_free((void*) arg1);
+            case 0x02: { // mem_free
+                uint64 retVal = MemoryAllocator::kmem_free((void *) arg1);
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
-            case 0x11: {// thread_create
-                thread_t *handle = (thread_t*) arg1;
+            }
+            case 0x11: { // thread_create
+                thread_t *handle = (thread_t *) arg1;
                 TCB::Body body = (TCB::Body) arg2;
                 void *targ = (void *) arg3;
                 void *stack = (void *) arg4;
                 TCB *tcb = TCB::createThread(body, targ, stack);
-                if (handle && tcb) *handle = (thread_t)tcb;
-                retVal = tcb ? 0 : -1;
+                if (handle && tcb) *handle = (thread_t) tcb;
+                uint64 retVal = tcb ? 0 : -1;
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
-            case 0x12: // thread_exit
-                retVal = TCB::exit();
+            case 0x12: { // thread_exit
+                uint64 retVal = TCB::exit();
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
+            }
             case 0x13: {
                 TCB::dispatch();
+                break;
+            }
+            case 0x21: { // sem_open
+                // arg1 - handle, arg2 - init
+                Semaphore *newSem = new Semaphore(arg2);
+                if (newSem) {
+                    Semaphore **handle = (Semaphore **) arg1;
+                    *handle = newSem;
+                    __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(0));
+                } else {
+                    __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(-1));
+                }
+                break;
+            }
+            case 0x22: { // sem_close
+                // arg1 - handle
+                uint64 retVal;
+                Semaphore *handle = (Semaphore *) arg1;
+                retVal = handle->close();
+                if (retVal == 0) {
+                    delete handle; // deallocate semaphore, blocked thread will unblock with wakeupError
+                }
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x23: { // sem_wait
+                // arg1 - handle
+                Semaphore *handle = (Semaphore *) arg1;
+                uint64 retVal = handle->wait();
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x24: { // sem_signal
+                // arg1 - handle
+                Semaphore *handle = (Semaphore *) arg1;
+                uint64 retVal = handle->signal();
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x25: { // sem_wait_n
+                // arg1 - handle, arg2 - n
+                Semaphore *handle = (Semaphore *) arg1;
+                uint64 retVal = handle->wait_n((unsigned) arg2);
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x26: { // sem_signal_n
+                // arg1 - handle, arg2 - n
+                Semaphore *handle = (Semaphore *) arg1;
+                uint64 retVal = handle->signal_n((unsigned) arg2);
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
             default:
