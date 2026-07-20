@@ -12,7 +12,9 @@
 class Semaphore {
 
 public:
-    Semaphore(int init) : value(init), closed(false) {}
+    Semaphore(unsigned init) : value(init), closed(false) {}
+    int wait();
+    int signal();
     int wait_n(unsigned n);
     int signal_n(unsigned n);
     int close();
@@ -25,7 +27,7 @@ public:
         MemoryAllocator::kmem_free(ptr);
     }
 private:
-    int value;
+    unsigned value; // changed from int
     bool closed;
     List<TCB> blockedThreads;
     void block(unsigned n);
