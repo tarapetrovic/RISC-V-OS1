@@ -25,7 +25,13 @@ public:
 
     void setBlocked(bool value) { blocked = value; }
 
-    int getWaitingCount() { return waitingCount; }
+    void setWaitingCount(unsigned value) { waitingCount = value; } // do i really need getters and setters if tcb and semaphores are friends???
+
+    unsigned getWaitingCount() { return waitingCount; }
+
+    void setWakeupError(bool value) { wakeupError = value; }
+
+    bool getWakeupError() { return wakeupError; }
 
     uint64 getTimeSlice() const { return timeSlice; }
 
@@ -50,7 +56,8 @@ private:
             finished(false),
             blocked(false),
             privileged(body == nullptr),
-            waitingCount(0)
+            waitingCount(0),
+            wakeupError(0)
     {
         if (body != nullptr) { Scheduler::put(this); } // check if its not main, then add it to scheduler
     }
@@ -71,8 +78,10 @@ private:
     bool blocked;
     bool privileged;
     unsigned waitingCount;
+    bool wakeupError;
 
     friend class Riscv;
+    friend class Semaphore;
 
     static void threadWrapper();
 
