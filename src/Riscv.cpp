@@ -46,7 +46,12 @@ void Riscv::handleSupervisorTrap() {
     }
     else if (scause == 0x8000000000000009UL)
     {
-        console_handler();
+        // console_handler();
+        int irq = plic_claim();
+        if (irq == 0x0a) {
+            console_handler();
+        }
+        plic_complete(irq);
     }
 
     // __putc('T'); printHex(scause); __putc('\n'); // confirms we even got here, and why
@@ -146,6 +151,16 @@ void Riscv::handleSupervisorTrap() {
                 KSemaphore *handle = (KSemaphore *) arg1;
                 uint64 retVal = handle->signal_n((unsigned) arg2);
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x41: { // getc, temporary for testing
+                char retVal = __getc();
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x42: { // putc, temporary for testing
+                char ch = (char) arg1;
+                __putc(ch);
                 break;
             }
             default:
