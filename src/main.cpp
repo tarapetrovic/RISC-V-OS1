@@ -11,11 +11,9 @@
 #include "../h/MemoryAllocator.hpp"
 #include "../h/syscall_c.hpp"
 #include "../h/TCB.hpp"
+#include "../h/syscall_cpp.hpp"
 
-volatile uint64 counterA = 0;
-volatile uint64 counterB = 0;
-
-// ---- tiny print helpers (only main/initial thread prints, never workers) ----
+// ---- print helpers (only main prints, between tests) ----
 static void printStr(const char* s) { while (*s) { __putc(*s); s++; } }
 static void printNum(long n) {
     if (n < 0) { __putc('-'); n = -n; }
@@ -28,74 +26,156 @@ static void report(const char* label, long got, long expected) {
     printStr(got == expected ? "  [PASS]\n" : "  [FAIL]\n");
 }
 
-// helper: dispatch until all listed threads report finished
-static void drain(thread_t* handles, int n) {
-    bool allDone = false;
-    while (!allDone) {
-        allDone = true;
-        for (int i = 0; i < n; i++)
-            if (!((TCB*)handles[i])->isFinished()) allDone = false;
-        if (!allDone) thread_dispatch();
+// dispatch until a shared "done count" reaches the expected number
+static void drainUntil(volatile int* doneCounter, int expected) {
+    while (*doneCounter < expected) thread_dispatch();
+}
+
+// ===========================================================================
+// TEST 1: global new / delete (operator new -> mem_alloc)
+// Allocate an array via new[], write to it, free via delete[].
+// If new routes through mem_alloc correctly, this works without crashing.
+// ===========================================================================
+static void testNewDelete() {
+    int* arr = new int[16];
+    for (int i = 0; i < 16; i++) arr[i] = i * i;
+    long sum = 0;
+    for (int i = 0; i < 16; i++) sum += arr[i];
+    delete[] arr;
+    // sum of i^2 for i=0..15 = 1240
+    report("T1 new/delete array sum", sum, 1240);
+
+    // single-object new/delete
+    int* p = new int(42);
+    long v = *p;
+    delete p;
+    report("T1 new/delete single", v, 42);
+}
+
+// ===========================================================================
+// TEST 2: Thread via FUNCTION-POINTER constructor.
+// A plain function increments a counter. Confirms body path + start().
+// ===========================================================================
+static volatile int t2_counter = 0;
+static volatile int t2_done = 0;
+static void t2_body(void*) {
+    for (int i = 0; i < 5; i++) { t2_counter++; thread_dispatch(); }
+    t2_done = 1;
+}
+static void testThreadFnPointer() {
+    Thread t(t2_body, nullptr);
+    t.start();
+    drainUntil(&t2_done, 1);
+    report("T2 fn-pointer thread ran", t2_counter, 5);
+}
+
+// ===========================================================================
+// TEST 3: Thread via SUBCLASS overriding run().
+// Confirms the default-ctor -> wrapper -> run() dispatch path.
+// ===========================================================================
+static volatile int t3_counter = 0;
+static volatile int t3_done = 0;
+class T3Thread : public Thread {
+public:
+    T3Thread() : Thread() {}
+protected:
+    void run() override {
+        for (int i = 0; i < 7; i++) { t3_counter++; thread_dispatch(); }
+        t3_done = 1;
     }
+};
+static void testThreadSubclass() {
+    T3Thread t;
+    t.start();
+    drainUntil(&t3_done, 1);
+    report("T3 subclass run() ran", t3_counter, 7);
 }
 
 // ===========================================================================
-// TEST 1: basic wait/signal handoff. sem=0, waiter blocks, signaler wakes it.
+// TEST 4: body WINS over run() (spec precedence rule).
+// A subclass overrides run() BUT is constructed with the function-pointer
+// ctor. Per spec, run() must be IGNORED and the function pointer used.
+// We set two different flags: the fn-pointer sets t4_body_ran, run() would
+// set t4_run_ran. Only the body flag must end up set.
 // ===========================================================================
-static sem_t t1_sem;
-static volatile int t1_signalDone = 0;
-static volatile int t1_wokeAfterSignal = -1;
-
-static void t1_waiter(void*) {
-    sem_wait(t1_sem);
-    t1_wokeAfterSignal = t1_signalDone;   // 1 iff signaler already ran
+static volatile int t4_body_ran = 0;
+static volatile int t4_run_ran = 0;
+static volatile int t4_done = 0;
+static void t4_body(void*) { t4_body_ran = 1; t4_done = 1; }
+class T4Thread : public Thread {
+public:
+    // constructed WITH a function pointer, even though run() is overridden
+    T4Thread() : Thread(t4_body, nullptr) {}
+protected:
+    void run() override { t4_run_ran = 1; t4_done = 1; }
+};
+static void testBodyWinsOverRun() {
+    T4Thread t;
+    t.start();
+    drainUntil(&t4_done, 1);
+    report("T4 body ran", t4_body_ran, 1);
+    report("T4 run() did NOT run", t4_run_ran, 0);
 }
-static void t1_signaler(void*) {
-    t1_signalDone = 1;
-    sem_signal(t1_sem);
-}
 
 // ===========================================================================
-// TEST 2: mutex — 4 threads x 1000 increments under sem(1). Expect 4000.
+// TEST 5: Semaphore (C++ wrapper) — mutex over a shared counter.
+// Two function-pointer threads increment under a Semaphore(1).
 // ===========================================================================
-static sem_t t2_mutex;
-static volatile long t2_counter = 0;
-static void t2_worker(void*) {
-    for (int i = 0; i < 1000; i++) {
-        sem_wait(t2_mutex);
-        long tmp = t2_counter; tmp++; t2_counter = tmp;
-        sem_signal(t2_mutex);
+static Semaphore* t5_mutex = nullptr;   // pointer so we control its lifetime
+static volatile long t5_counter = 0;
+static volatile int t5_done = 0;
+static void t5_worker(void*) {
+    for (int i = 0; i < 500; i++) {
+        t5_mutex->wait();
+        long tmp = t5_counter; tmp++; t5_counter = tmp;
+        t5_mutex->signal();
         thread_dispatch();
     }
+    t5_done++;
+}
+static void testSemaphoreCpp() {
+    t5_mutex = new Semaphore(1);   // uses global new -> mem_alloc; ctor -> sem_open
+    t5_counter = 0; t5_done = 0;
+    Thread a(t5_worker, nullptr);
+    Thread b(t5_worker, nullptr);
+    a.start();
+    b.start();
+    drainUntil(&t5_done, 2);
+    report("T5 sem mutex counter", t5_counter, 1000);
+    delete t5_mutex;               // dtor -> sem_close; global delete -> mem_free
+    t5_mutex = nullptr;
 }
 
 // ===========================================================================
-// TEST 3: wait_n/signal_n mixed sizes + FIFO. Waiters need 5,1,3 (in order).
+// TEST 6: Semaphore blocking handoff (C++ wrapper).
+// sem starts at 0. Waiter blocks on wait(); signaler signals(). Confirms the
+// C++ wrapper's wait/signal forward correctly and blocking works.
 // ===========================================================================
-static sem_t t3_sem;
-static volatile int t3_order[3];
-static volatile int t3_idx = 0;
-static volatile int t3_w5_done = 0, t3_w1_done = 0, t3_w3_done = 0;
-static void t3_w5(void*) { sem_wait_n(t3_sem, 5); t3_order[t3_idx++] = 5; t3_w5_done = 1; }
-static void t3_w1(void*) { sem_wait_n(t3_sem, 1); t3_order[t3_idx++] = 1; t3_w1_done = 1; }
-static void t3_w3(void*) { sem_wait_n(t3_sem, 3); t3_order[t3_idx++] = 3; t3_w3_done = 1; }
-
-// ===========================================================================
-// TEST 4: sem_close wakes blocked waiters with error (<0).
-// ===========================================================================
-static sem_t t4_sem;
-static volatile int t4_ret_a = 999, t4_ret_b = 999;
-static void t4_a(void*) { t4_ret_a = sem_wait(t4_sem); }
-static void t4_b(void*) { t4_ret_b = sem_wait(t4_sem); }
-
-// ===========================================================================
-// TEST 5: wait_n immediate success when value suffices. sem=10.
-// ===========================================================================
-static sem_t t5_sem;
-static volatile int t5_r1 = 999, t5_r2 = 999;
-static void t5_taker(void*) {
-    t5_r1 = sem_wait_n(t5_sem, 4);   // 10 -> 6
-    t5_r2 = sem_wait_n(t5_sem, 6);   // 6 -> 0
+static Semaphore* t6_sem = nullptr;
+static volatile int t6_signalDone = 0;
+static volatile int t6_wokeAfterSignal = -1;
+static volatile int t6_done = 0;
+static void t6_waiter(void*) {
+    t6_sem->wait();
+    t6_wokeAfterSignal = t6_signalDone;
+    t6_done++;
+}
+static void t6_signaler(void*) {
+    t6_signalDone = 1;
+    t6_sem->signal();
+    t6_done++;
+}
+static void testSemaphoreBlocking() {
+    t6_sem = new Semaphore(0);
+    t6_signalDone = 0; t6_wokeAfterSignal = -1; t6_done = 0;
+    Thread w(t6_waiter, nullptr);
+    Thread s(t6_signaler, nullptr);
+    w.start();
+    s.start();
+    drainUntil(&t6_done, 2);
+    report("T6 waiter woke after signal", t6_wokeAfterSignal, 1);
+    delete t6_sem;
+    t6_sem = nullptr;
 }
 
 int main() {
@@ -105,91 +185,13 @@ int main() {
 
     TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
 
-    printStr("\n##### SEMAPHORE TESTS #####\n");
-
-    // ---- TEST 1 ----
-    {
-        sem_open(&t1_sem, 0);
-        thread_t b, a;
-        thread_create(&b, t1_waiter, nullptr);
-        thread_create(&a, t1_signaler, nullptr);
-        thread_t hs[] = { b, a };
-        drain(hs, 2);
-        report("T1 waiter woke after signal", t1_wokeAfterSignal, 1);
-        sem_close(t1_sem);
-    }
-
-    // ---- TEST 2 ----
-    {
-        sem_open(&t2_mutex, 1);
-        t2_counter = 0;
-        thread_t th[4];
-        for (int i = 0; i < 4; i++) thread_create(&th[i], t2_worker, nullptr);
-        drain(th, 4);
-        report("T2 counter (mutex)", t2_counter, 4000);
-        sem_close(t2_mutex);
-    }
-
-    // ---- TEST 3 ----
-    {
-        sem_open(&t3_sem, 0);
-        t3_idx = 0; t3_w5_done = t3_w1_done = t3_w3_done = 0;
-        thread_t w5, w1, w3;
-        thread_create(&w5, t3_w5, nullptr);
-        thread_create(&w1, t3_w1, nullptr);
-        thread_create(&w3, t3_w3, nullptr);
-
-        // let all three block on wait_n (sem is 0)
-        thread_dispatch(); thread_dispatch(); thread_dispatch(); thread_dispatch();
-        report("T3 stage0 nobody woke", t3_idx, 0);
-
-        sem_signal_n(t3_sem, 4);                 // head needs 5, only 4 -> none
-        thread_dispatch(); thread_dispatch();
-        report("T3 stage1 still nobody", t3_idx, 0);
-
-        sem_signal_n(t3_sem, 1);                 // now 5 -> w5 wakes, value 0
-        thread_dispatch(); thread_dispatch();
-        report("T3 stage2 w5 done", t3_w5_done, 1);
-        report("T3 stage2 idx==1", t3_idx, 1);
-
-        sem_signal_n(t3_sem, 4);                 // 4 -> w1(needs1) wakes ->3 -> w3(needs3) wakes ->0
-        thread_t rest[] = { w1, w3, w5 };
-        drain(rest, 3);
-        report("T3 order[0]", t3_order[0], 5);
-        report("T3 order[1]", t3_order[1], 1);
-        report("T3 order[2]", t3_order[2], 3);
-        sem_close(t3_sem);
-    }
-
-    // ---- TEST 4 ----
-    {
-        sem_open(&t4_sem, 0);
-        t4_ret_a = t4_ret_b = 999;
-        thread_t a, b;
-        thread_create(&a, t4_a, nullptr);
-        thread_create(&b, t4_b, nullptr);
-        thread_dispatch(); thread_dispatch(); thread_dispatch();  // both block
-
-        sem_close(t4_sem);                        // wake both with error
-        thread_t hs[] = { a, b };
-        drain(hs, 2);
-        report("T4 a error<0", (t4_ret_a < 0) ? 1 : 0, 1);
-        report("T4 b error<0", (t4_ret_b < 0) ? 1 : 0, 1);
-        // sem already closed+deleted — do NOT touch t4_sem again
-    }
-
-    // ---- TEST 5 ----
-    {
-        sem_open(&t5_sem, 10);
-        thread_t t;
-        thread_create(&t, t5_taker, nullptr);
-        thread_t hs[] = { t };
-        drain(hs, 1);
-        report("T5 wait_n(4) ok", t5_r1, 0);
-        report("T5 wait_n(6) ok", t5_r2, 0);
-        sem_close(t5_sem);
-    }
-
+    printStr("\n##### C++ API TESTS #####\n");
+    testNewDelete();
+    testThreadFnPointer();
+    testThreadSubclass();
+    testBodyWinsOverRun();
+    testSemaphoreCpp();
+    testSemaphoreBlocking();
     printStr("##### TESTS COMPLETE #####\n");
     return 0;
 
