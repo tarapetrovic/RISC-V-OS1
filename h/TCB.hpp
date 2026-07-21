@@ -81,7 +81,7 @@ private:
     bool wakeupError;
 
     friend class Riscv;
-    friend class Semaphore;
+    friend class KSemaphore;
 
     static void threadWrapper();
 
