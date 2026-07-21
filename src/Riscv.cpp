@@ -99,9 +99,9 @@ void Riscv::handleSupervisorTrap() {
             }
             case 0x21: { // sem_open
                 // arg1 - handle, arg2 - init
-                Semaphore *newSem = new Semaphore(arg2);
+                KSemaphore *newSem = new KSemaphore(arg2);
                 if (newSem) {
-                    Semaphore **handle = (Semaphore **) arg1;
+                    KSemaphore **handle = (KSemaphore **) arg1;
                     *handle = newSem;
                     __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(0));
                 } else {
@@ -112,7 +112,7 @@ void Riscv::handleSupervisorTrap() {
             case 0x22: { // sem_close
                 // arg1 - handle
                 uint64 retVal;
-                Semaphore *handle = (Semaphore *) arg1;
+                KSemaphore *handle = (KSemaphore *) arg1;
                 retVal = handle->close();
                 if (retVal == 0) {
                     delete handle; // deallocate semaphore, blocked thread will unblock with wakeupError
@@ -122,28 +122,28 @@ void Riscv::handleSupervisorTrap() {
             }
             case 0x23: { // sem_wait
                 // arg1 - handle
-                Semaphore *handle = (Semaphore *) arg1;
+                KSemaphore *handle = (KSemaphore *) arg1;
                 uint64 retVal = handle->wait();
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
             case 0x24: { // sem_signal
                 // arg1 - handle
-                Semaphore *handle = (Semaphore *) arg1;
+                KSemaphore *handle = (KSemaphore *) arg1;
                 uint64 retVal = handle->signal();
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
             case 0x25: { // sem_wait_n
                 // arg1 - handle, arg2 - n
-                Semaphore *handle = (Semaphore *) arg1;
+                KSemaphore *handle = (KSemaphore *) arg1;
                 uint64 retVal = handle->wait_n((unsigned) arg2);
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
             case 0x26: { // sem_signal_n
                 // arg1 - handle, arg2 - n
-                Semaphore *handle = (Semaphore *) arg1;
+                KSemaphore *handle = (KSemaphore *) arg1;
                 uint64 retVal = handle->signal_n((unsigned) arg2);
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
