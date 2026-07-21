@@ -61,3 +61,5 @@ int Semaphore::signal() {
 
 // --- Console ---
 // TODO na kraju
+char Console::getc() { return ::getc(); } // call global getc from c api, thats why ::
+void Console::putc(char c) { ::putc(c); } // call global putc from c api, thats why ::
