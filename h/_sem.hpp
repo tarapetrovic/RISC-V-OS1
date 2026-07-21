@@ -9,10 +9,10 @@
 #include "TCB.hpp"
 #include "MemoryAllocator.hpp"
 
-class Semaphore {
+class KSemaphore {
 
 public:
-    Semaphore(unsigned init) : value(init), closed(false) {}
+    KSemaphore(unsigned init) : value(init), closed(false) {}
     int wait();
     int signal();
     int wait_n(unsigned n);

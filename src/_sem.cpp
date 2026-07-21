@@ -5,7 +5,7 @@
 #include "../h/_sem.hpp"
 
 
-int Semaphore::wait_n(unsigned n) {
+int KSemaphore::wait_n(unsigned n) {
     if (closed) return -1;
 
     if (value >= n) {
@@ -18,7 +18,7 @@ int Semaphore::wait_n(unsigned n) {
     return 0;
 }
 
-int Semaphore::signal_n(unsigned n) {
+int KSemaphore::signal_n(unsigned n) {
     if (closed) return -1;
 
     value += n;
@@ -30,7 +30,7 @@ int Semaphore::signal_n(unsigned n) {
     return 0;
 }
 
-int Semaphore::close() {
+int KSemaphore::close() {
     if (closed) return -1;
     closed = true;
 
@@ -43,7 +43,7 @@ int Semaphore::close() {
     return 0;
 }
 
-void Semaphore::block(unsigned n) {
+void KSemaphore::block(unsigned n) {
     TCB* running = TCB::running;
     running->waitingCount = n;
     running->setWakeupError(false);
@@ -52,17 +52,17 @@ void Semaphore::block(unsigned n) {
     TCB::dispatch(); // ili thread_dispatch()????
 }
 
-void Semaphore::unblock() {
+void KSemaphore::unblock() {
     TCB* head = blockedThreads.removeFirst();
     value -= head->getWaitingCount();
     head->setBlocked(false);
     Scheduler::put(head);
 }
 
-int Semaphore::wait() {
+int KSemaphore::wait() {
     return wait_n(1);
 }
 
-int Semaphore::signal() {
+int KSemaphore::signal() {
     return signal_n(1);
 }
