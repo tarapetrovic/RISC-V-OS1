@@ -46,12 +46,7 @@ void Riscv::handleSupervisorTrap() {
     }
     else if (scause == 0x8000000000000009UL)
     {
-        // console_handler();
-        int irq = plic_claim();
-        if (irq == 0x0a) {
-            console_handler();
-        }
-        plic_complete(irq);
+         console_handler();
     }
 
     // __putc('T'); printHex(scause); __putc('\n'); // confirms we even got here, and why
