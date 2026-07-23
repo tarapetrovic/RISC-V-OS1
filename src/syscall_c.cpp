@@ -108,6 +108,15 @@ int sem_signal_n(sem_t id, unsigned n) {
     return (int)ret;
 }
 
+int time_sleep(time_t time) {
+    volatile uint64 ret;
+    __asm__ volatile ("mv a1, %[ulaz]" : : [ulaz]"r"(time));
+    __asm__ volatile ("li a0, 0x31");
+    __asm__ volatile ("ecall");
+    __asm__ volatile ("mv %[izlaz], a0" : [izlaz]"=r"(ret));
+    return (int)ret;
+}
+
 char getc() {
     volatile uint64 ret;
     __asm__ volatile ("li a0, 0x41");

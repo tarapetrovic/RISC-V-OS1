@@ -31,7 +31,7 @@ void Thread::dispatch() {
 }
 
 int Thread::sleep(time_t t) {
-    return -1;   // TODO - return time_sleep(t);
+    return time_sleep(t);
 }
 
 void Thread::wrapper(void* thr) {

@@ -26,6 +26,8 @@
     int sem_wait_n(sem_t id, unsigned n);
     int sem_signal_n(sem_t id, unsigned n);
 
+    int time_sleep(time_t time);
+
     const int EOF = -1;
     char getc();
     void putc(char);
