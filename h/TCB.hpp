@@ -41,6 +41,7 @@ public:
     static TCB *createThread(Body body, Argument arg, void* stack_space);
 
     static void yield();
+    static void dispatch();
 
     static TCB *running;
 
@@ -57,7 +58,8 @@ private:
             blocked(false),
             privileged(body == nullptr),
             waitingCount(0),
-            wakeupError(0)
+            wakeupError(0),
+            sleepTime(0)
     {
         if (body != nullptr) { Scheduler::put(this); } // check if its not main, then add it to scheduler
     }
@@ -79,15 +81,18 @@ private:
     bool privileged;
     unsigned waitingCount;
     bool wakeupError;
+    time_t sleepTime;
 
     friend class Riscv;
     friend class KSemaphore;
+    friend class SleepingList;
+    // friend class Scheduler; // i moved dispatch to public, think about if this was a good idea!!
 
     static void threadWrapper();
 
     static void contextSwitch(Context *oldContext, Context *runningContext);
 
-    static void dispatch();
+    // static void dispatch(); // moved it to public instead of private as a lot of classes needed it, to avoid a lot of friend classes
 
     static int exit();
 
