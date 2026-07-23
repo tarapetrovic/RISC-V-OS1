@@ -33,6 +33,8 @@ void printHex(uint64 val) {
     }
 }
 volatile uint64 extIrqCount = 0;
+volatile uint64 tickCount = 0; // TESTING
+volatile uint64 preemptCount = 0; // TESTING
 
 void Riscv::handleSupervisorTrap() {
     volatile uint64 scause = Riscv::r_scause();
@@ -42,7 +44,14 @@ void Riscv::handleSupervisorTrap() {
     if (scause == 0x8000000000000001UL) {
         // timer/software interrupt — clear it and return for now
         mc_sip(SIP_SSIP);
-        //return;
+        tickCount++; // TESTING
+        // Scheduler::updateSleepingList();  // TODO
+        TCB::timeSliceCounter++; // static variable
+        if (TCB::running != nullptr && TCB::timeSliceCounter >= TCB::running->getTimeSlice()) {
+            TCB::timeSliceCounter = 0;
+            preemptCount++; // TESTING
+            TCB::dispatch();
+        }
     }
     else if (scause == 0x8000000000000009UL)
     {
