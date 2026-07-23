@@ -43,13 +43,14 @@ void Riscv::handleSupervisorTrap() {
 
     if (scause == 0x8000000000000001UL) {
         // timer/software interrupt — clear it and return for now
-        mc_sip(SIP_SSIP);
-        tickCount++; // TESTING
-        // Scheduler::updateSleepingList();  // TODO
+        mc_sip(SIP_SSIP); // only this is needed for 20p
+        // tickCount++; // TESTING
+        Scheduler::updateSleeping();
+
         TCB::timeSliceCounter++; // static variable
         if (TCB::running != nullptr && TCB::timeSliceCounter >= TCB::running->getTimeSlice()) {
             TCB::timeSliceCounter = 0;
-            preemptCount++; // TESTING
+            // preemptCount++; // TESTING
             TCB::dispatch();
         }
     }
@@ -154,6 +155,12 @@ void Riscv::handleSupervisorTrap() {
                 // arg1 - handle, arg2 - n
                 KSemaphore *handle = (KSemaphore *) arg1;
                 uint64 retVal = handle->signal_n((unsigned) arg2);
+                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+                break;
+            }
+            case 0x31: { // time_sleep
+                time_t t = (time_t) arg1;
+                uint64 retVal = Scheduler::putToSleep(t);
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
