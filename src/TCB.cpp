@@ -11,8 +11,8 @@
 TCB *TCB::running = nullptr;
 uint64 TCB::timeSliceCounter = 0;
 
-TCB *TCB::createThread(TCB::Body body, TCB::Argument arg, void *stack_space) {
-    return new TCB(body, DEFAULT_TIME_SLICE, arg, stack_space); // proveri da li default time slice ili onaj zakomentarisani??
+TCB *TCB::createThread(TCB::Body body, TCB::Argument arg, void *stack_space, bool privileged) {
+    return new TCB(body, DEFAULT_TIME_SLICE, arg, stack_space, privileged); // proveri da li default time slice ili onaj zakomentarisani??
 }
 
 

@@ -38,7 +38,7 @@ public:
     using Body = void (*)(void*);
     using Argument = void*; // razmisli zelis li ovo da koristis
 
-    static TCB *createThread(Body body, Argument arg, void* stack_space);
+    static TCB *createThread(Body body, Argument arg, void* stack_space, bool privileged = false);
 
     static void yield();
     static void dispatch();
@@ -46,7 +46,7 @@ public:
     static TCB *running;
 
 private:
-    TCB(Body body, uint64 timeSlice, void* arg, void* stack_space) :
+    TCB(Body body, uint64 timeSlice, void* arg, void* stack_space, bool privileged) :
             body(body),
             stack(body != nullptr ? (char*) stack_space : nullptr), // main function has nullptr for its body, and it doesnt need stack
             context({(uint64) &threadWrapper,
@@ -56,7 +56,8 @@ private:
             arg(arg),
             finished(false),
             blocked(false),
-            privileged(body == nullptr),
+            // privileged(body == nullptr),
+            privileged(privileged),
             waitingCount(0),
             wakeupError(0),
             sleepTime(0)
