@@ -8,6 +8,7 @@
 #include "../h/MemoryAllocator.hpp"
 #include "../h/syscall_c.hpp"
 #include "../h/TCB.hpp"
+#include "../h/KConsole.hpp"
 // #include "../h/syscall_cpp.hpp"
 
 
@@ -59,7 +60,7 @@ static void idleBody(void*) {
 int main() {
 //    MemoryAllocator::kinit();
 //    Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
-//    TCB::running = TCB::createThread(nullptr, nullptr, nullptr);
+//    TCB::running = TCB::createThread(nullptr, nullptr, nullptr, true);
 //
 //    thread_t idleThread;
 //    thread_create(&idleThread, idleBody, nullptr); // create idle thread, needs to be infinite loop so its always in scheduler, must be the first user thread we create!!!
@@ -87,7 +88,11 @@ int main() {
 ////// ------------ MAIN FOR TESTING OFFICIAL TESTS (20 POINTS) ------------------
     MemoryAllocator::kinit();
     Riscv::w_stvec((uint64)&Riscv::supervisorTrap);
-    TCB::running = TCB::createThread(nullptr, nullptr, nullptr); // main thread
+    TCB::running = TCB::createThread(nullptr, nullptr, nullptr, true); // main thread
+
+    KConsole::getInstance();
+    // think about using kmem_alloc(DEFAULT_STACK_SIZE) instead of new - to avoid ecall
+    TCB::createThread(KConsole::outputThreadBody, nullptr, new char[DEFAULT_STACK_SIZE], true); // bypass thread_create since we need to make a privileged thread
 
     thread_t idleThread;
     thread_create(&idleThread, idleBody, nullptr); // create idle thread, needs to be infinite loop so its always in scheduler, must be the first user thread we create!!!
@@ -98,6 +103,11 @@ int main() {
 
     // let the userMain thread (and everything it spawns) run to completion
     while (!((TCB*)userThread)->isFinished()) {
+        thread_dispatch();
+    }
+
+    // let the output thread drain whats still in buffer
+    while (!KConsole::getInstance()->outputEmpty()) {
         thread_dispatch();
     }
 
