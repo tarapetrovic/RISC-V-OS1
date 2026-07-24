@@ -13,8 +13,7 @@ KERNEL_ASM = kernel.asm
 #  ${DIR_LIBS}/console.lib
 
 LIBS = \
-  ${DIR_LIBS}/hw.lib \
-  ${DIR_LIBS}/console.lib
+  ${DIR_LIBS}/hw.lib
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
