@@ -9,6 +9,7 @@
 #include "../h/MemoryAllocator.hpp"
 #include "../h/syscall_c.hpp"
 #include "../h/_sem.hpp"
+#include "../h/KConsole.hpp"
 
 
 void Riscv::popSppSpie()
@@ -25,13 +26,14 @@ void Riscv::popSppSpie()
     __asm__ volatile ("sret");
 }
 
-void printHex(uint64 val) {
-    const char* hexDigits = "0123456789abcdef";
-    __putc('0'); __putc('x');
-    for (int shift = 60; shift >= 0; shift -= 4) {
-        __putc(hexDigits[(val >> shift) & 0xF]);
-    }
-}
+//// ---- helper print function with their console ----
+//    void printHex(uint64 val) {
+//    const char* hexDigits = "0123456789abcdef";
+//    __putc('0'); __putc('x');
+//    for (int shift = 60; shift >= 0; shift -= 4) {
+//        __putc(hexDigits[(val >> shift) & 0xF]);
+//    }
+//}
 volatile uint64 extIrqCount = 0;
 volatile uint64 tickCount = 0; // TESTING
 volatile uint64 preemptCount = 0; // TESTING
@@ -54,9 +56,16 @@ void Riscv::handleSupervisorTrap() {
             TCB::dispatch();
         }
     }
-    else if (scause == 0x8000000000000009UL)
+    else if (scause == 0x8000000000000009UL) // external interrupt
     {
-         console_handler();
+//      console_handler(); // 20 points / njihova konzola treba samo ovo
+        int irq = plic_claim(); // clears bit 9, stating that the interrupt has been processed
+        if (irq == CONSOLE_IRQ) { // check if its console (it will be, thats the only external interrupt
+            KConsole::getInstance()->handleInterrupt(); // process the getc interrupt
+        }
+        if (irq != 0) { // if irq==0 it means there was no interrupt
+            plic_complete(irq);
+        }
     }
 
     // __putc('T'); printHex(scause); __putc('\n'); // confirms we even got here, and why
@@ -164,18 +173,29 @@ void Riscv::handleSupervisorTrap() {
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
-            case 0x41: { // getc, temporary for testing
-                char retVal = __getc();
+            case 0x41: { // getc, my console
+                char retVal = KConsole::getInstance()->getc();
                 __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
                 break;
             }
-            case 0x42: { // putc, temporary for testing
-                char ch = (char) arg1;
-                __putc(ch);
+            case 0x42: { // putc, my console
+                char ch = (char)arg1;
+                KConsole::getInstance()->putc(ch);
                 break;
             }
+            //// ---- USING THEIR CONSOLE ----
+//            case 0x41: { // getc, 20 points
+//                char retVal = __getc();
+//                __asm__ volatile ("sd %[ulaz], 10*8(fp)" : : [ulaz]"r"(retVal));
+//                break;
+//            }
+//            case 0x42: { // putc, 20 points
+//                char ch = (char) arg1;
+//                __putc(ch);
+//                break;
+//            }
             default:
-                __putc('?');
+                KConsole::getInstance()->putc('?');
         }
 
     }
